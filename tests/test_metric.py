@@ -25,12 +25,11 @@ class DummyMetric(EvaluationModule):
         result = {}
         if not predictions:
             return result
-        else:
-            result["accuracy"] = sum(i == j for i, j in zip(predictions, references)) / len(predictions)
-            try:
-                result["set_equality"] = set(predictions) == set(references)
-            except TypeError:
-                result["set_equality"] = None
+        result["accuracy"] = sum(i == j for i, j in zip(predictions, references)) / len(predictions)
+        try:
+            result["set_equality"] = set(predictions) == set(references)
+        except TypeError:
+            result["set_equality"] = None
         return result
 
     @classmethod
@@ -109,8 +108,7 @@ def metric_compute(arg):
             num_process=num_process, process_id=process_id, experiment_id=exp_id, cache_dir=cache_dir, timeout=5
         )
         time.sleep(wait)
-        results = metric.compute(predictions=preds, references=refs)
-        return results
+        return metric.compute(predictions=preds, references=refs)
     finally:
         properly_del_metric(metric)
 
@@ -127,8 +125,7 @@ def metric_add_batch_and_compute(arg):
         )
         metric.add_batch(predictions=preds, references=refs)
         time.sleep(wait)
-        results = metric.compute()
-        return results
+        return metric.compute()
     finally:
         properly_del_metric(metric)
 
@@ -146,8 +143,7 @@ def metric_add_and_compute(arg):
         for pred, ref in zip(preds, refs):
             metric.add(prediction=pred, reference=ref)
         time.sleep(wait)
-        results = metric.compute()
-        return results
+        return metric.compute()
     finally:
         properly_del_metric(metric)
 
@@ -729,8 +725,12 @@ class TestEvaluationcombined_evaluation(TestCase):
         dummy_result_1 = DummyMetric.expected_results()
         dummy_result_2 = AnotherDummyMetric.expected_results()
 
-        dummy_result_1[dummy_metric.name + "_set_equality"] = dummy_result_1.pop("set_equality")
-        dummy_result_1[another_dummy_metric.name + "_set_equality"] = dummy_result_2["set_equality"]
+        dummy_result_1[f"{dummy_metric.name}_set_equality"] = dummy_result_1.pop(
+            "set_equality"
+        )
+        dummy_result_1[
+            f"{another_dummy_metric.name}_set_equality"
+        ] = dummy_result_2["set_equality"]
 
         combined_evaluation = combine([dummy_metric, another_dummy_metric])
 

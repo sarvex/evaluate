@@ -89,7 +89,7 @@ class AutomaticSpeechRecognitionEvaluator(Evaluator):
         if generation_kwargs is not None:
             self.PIPELINE_KWARGS.update(generation_kwargs)
 
-        result = super().compute(
+        return super().compute(
             model_or_pipeline=model_or_pipeline,
             data=data,
             subset=subset,
@@ -104,5 +104,3 @@ class AutomaticSpeechRecognitionEvaluator(Evaluator):
             input_column=input_column,
             label_column=label_column,
         )
-
-        return result

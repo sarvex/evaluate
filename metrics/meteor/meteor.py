@@ -123,8 +123,8 @@ class Meteor(evaluate.Metric):
         multiple_refs = isinstance(references[0], list)
         if NLTK_VERSION >= version.Version("3.6.5"):
             # the version of METEOR in NLTK version 3.6.5 and earlier expect tokenized inputs
-            if multiple_refs:
-                scores = [
+            scores = (
+                [
                     meteor_score.meteor_score(
                         [word_tokenize(ref) for ref in refs],
                         word_tokenize(pred),
@@ -134,18 +134,10 @@ class Meteor(evaluate.Metric):
                     )
                     for refs, pred in zip(references, predictions)
                 ]
-            else:
-                scores = [
+                if multiple_refs
+                else [
                     meteor_score.single_meteor_score(
-                        word_tokenize(ref), word_tokenize(pred), alpha=alpha, beta=beta, gamma=gamma
-                    )
-                    for ref, pred in zip(references, predictions)
-                ]
-        else:
-            if multiple_refs:
-                scores = [
-                    meteor_score.meteor_score(
-                        [[word_tokenize(ref) for ref in group] for group in references][0],
+                        word_tokenize(ref),
                         word_tokenize(pred),
                         alpha=alpha,
                         beta=beta,
@@ -153,10 +145,22 @@ class Meteor(evaluate.Metric):
                     )
                     for ref, pred in zip(references, predictions)
                 ]
-            else:
-                scores = [
-                    meteor_score.single_meteor_score(ref, pred, alpha=alpha, beta=beta, gamma=gamma)
-                    for ref, pred in zip(references, predictions)
-                ]
+            )
+        elif multiple_refs:
+            scores = [
+                meteor_score.meteor_score(
+                    [[word_tokenize(ref) for ref in group] for group in references][0],
+                    word_tokenize(pred),
+                    alpha=alpha,
+                    beta=beta,
+                    gamma=gamma,
+                )
+                for ref, pred in zip(references, predictions)
+            ]
+        else:
+            scores = [
+                meteor_score.single_meteor_score(ref, pred, alpha=alpha, beta=beta, gamma=gamma)
+                for ref, pred in zip(references, predictions)
+            ]
 
         return {"meteor": np.mean(scores)}

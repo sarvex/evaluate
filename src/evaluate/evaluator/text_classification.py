@@ -150,7 +150,7 @@ class TextClassificationEvaluator(Evaluator):
             random_state=random_state,
         )
 
-        result.update(metric_results)
+        result |= metric_results
         result.update(perf_results)
 
         return result

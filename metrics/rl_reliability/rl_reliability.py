@@ -119,10 +119,10 @@ class RLReliability(evaluate.Metric):
                 f"For robust statistics it is recommended to use at least {N_RUNS_RECOMMENDED} runs whereas you provided {len(timesteps)}."
             )
 
-        curves = []
-        for timestep, reward in zip(timesteps, rewards):
-            curves.append(np.stack([timestep, reward]))
-
+        curves = [
+            np.stack([timestep, reward])
+            for timestep, reward in zip(timesteps, rewards)
+        ]
         if self.config_name == "online":
             if baseline == "default":
                 baseline = "curve_range"
@@ -182,5 +182,4 @@ class RLReliability(evaluate.Metric):
             ]
 
         evaluator = eval_metrics.Evaluator(metrics=metrics)
-        result = evaluator.compute_metrics(curves)
-        return result
+        return evaluator.compute_metrics(curves)

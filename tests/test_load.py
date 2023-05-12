@@ -57,7 +57,7 @@ class ModuleFactoryTest(TestCase):
         self.cache_dir = tempfile.mkdtemp()
         self.download_config = DownloadConfig(cache_dir=self.cache_dir)
         self.dynamic_modules_path = evaluate.loading.init_dynamic_modules(
-            name="test_datasets_modules_" + os.path.basename(self.hf_modules_cache),
+            name=f"test_datasets_modules_{os.path.basename(self.hf_modules_cache)}",
             hf_modules_cache=self.hf_modules_cache,
         )
 

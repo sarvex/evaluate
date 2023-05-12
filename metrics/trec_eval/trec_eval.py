@@ -119,8 +119,7 @@ class TRECEval(evaluate.Metric):
 
         trec_eval = TrecEval(trec_run, trec_qrel)
 
-        result = {}
-        result["runid"] = trec_eval.run.get_runid()
+        result = {"runid": trec_eval.run.get_runid()}
         result["num_ret"] = trec_eval.get_retrieved_documents(per_query=False)
         result["num_rel"] = trec_eval.get_relevant_documents(per_query=False)
         result["num_rel_ret"] = trec_eval.get_relevant_retrieved_documents(per_query=False)

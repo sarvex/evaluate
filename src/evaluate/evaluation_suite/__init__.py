@@ -86,9 +86,7 @@ class EvaluationSuite:
         )
         name = Path(path).stem
         evaluation_cls = import_main_class(evaluation_module.module_path)
-        evaluation_instance = evaluation_cls(name)
-
-        return evaluation_instance
+        return evaluation_cls(name)
 
     def __repr__(self):
         self.tasks = [str(task) for task in self.suite]
@@ -123,7 +121,9 @@ class EvaluationSuite:
             args_for_task["split"] = task.split
             results = task_evaluator.compute(**args_for_task)
 
-            results["task_name"] = task_name + "/" + task.subset if task.subset else task_name
+            results["task_name"] = (
+                f"{task_name}/{task.subset}" if task.subset else task_name
+            )
             results["data_preprocessor"] = str(task.data_preprocessor) if task.data_preprocessor is not None else None
             results_all.append(results)
         return results_all

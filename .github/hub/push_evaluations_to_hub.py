@@ -26,10 +26,7 @@ def get_git_tag(lib_path, commit_hash):
             env=os.environ.copy(),
         )
     tag = output.stdout.strip()
-    if re.match(r"v\d*\.\d*\.\d*", tag) is not None:
-        return tag
-    else:
-        return None
+    return tag if re.match(r"v\d*\.\d*\.\d*", tag) is not None else None
 
 
 def copy_recursive(source_base_path, target_base_path):
@@ -53,14 +50,20 @@ def update_evaluate_dependency(requirements_path, commit_hash):
 def push_module_to_hub(module_path, type, token, commit_hash, tag=None):
     module_name = module_path.stem
     org = f"evaluate-{type}"
-    
-    repo_url = create_repo(org + "/" + module_name, repo_type="space", space_sdk="gradio", exist_ok=True, token=token)    
+
+    repo_url = create_repo(
+        f"{org}/{module_name}",
+        repo_type="space",
+        space_sdk="gradio",
+        exist_ok=True,
+        token=token,
+    )
     repo_path = Path(tempfile.mkdtemp())
-    
+
     scheme = urlparse(repo_url).scheme
     repo_url = repo_url.replace(f"{scheme}://", f"{scheme}://user:{token}@")
     clean_repo_url = re.sub(r"(https?)://.*@", r"\1://", repo_url)
-    
+
     try:
         subprocess.run(
             f"git clone {repo_url}".split(),
@@ -76,10 +79,10 @@ def push_module_to_hub(module_path, type, token, commit_hash, tag=None):
         raise OSError(f"Could not clone from '{clean_repo_url}'")
 
     repo = Repository(local_dir=repo_path / module_name, use_auth_token=token)
-    
+
     copy_recursive(module_path, repo_path / module_name)
     update_evaluate_dependency(repo_path / module_name / "requirements.txt", commit_hash)
-    
+
     repo.git_add()
     try:
         repo.git_commit(f"Update Space (evaluate main: {commit_hash[:8]})")
@@ -93,7 +96,7 @@ def push_module_to_hub(module_path, type, token, commit_hash, tag=None):
 
     if tag is not None:
         repo.add_tag(tag, message="add evaluate tag", remote="origin")
-    
+
     shutil.rmtree(repo_path)
 
 

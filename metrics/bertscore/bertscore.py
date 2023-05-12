@@ -26,7 +26,7 @@ import evaluate
 @contextmanager
 def filter_logging_context():
     def filter_log(record):
-        return False if "This IS expected if you are initializing" in record.msg else True
+        return "This IS expected if you are initializing" not in record.msg
 
     logger = datasets.utils.logging.get_logger("transformers.modeling_utils")
     logger.addFilter(filter_log)
@@ -147,11 +147,7 @@ class BERTScore(evaluate.Metric):
         if isinstance(references[0], str):
             references = [[ref] for ref in references]
 
-        if idf:
-            idf_sents = [r for ref in references for r in ref]
-        else:
-            idf_sents = None
-
+        idf_sents = [r for ref in references for r in ref] if idf else None
         get_hash = bert_score.utils.get_hash
         scorer = bert_score.BERTScorer
 
@@ -206,10 +202,9 @@ class BERTScore(evaluate.Metric):
             verbose=verbose,
             batch_size=batch_size,
         )
-        output_dict = {
+        return {
             "precision": P.tolist(),
             "recall": R.tolist(),
             "f1": F.tolist(),
             "hashcode": hashcode,
         }
-        return output_dict

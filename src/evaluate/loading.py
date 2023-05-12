@@ -132,7 +132,7 @@ def increase_load_count(name: str, resource_type: str):
     """Update the download count of a dataset or metric."""
     if not config.HF_EVALUATE_OFFLINE and config.HF_UPDATE_DOWNLOAD_COUNTS:
         try:
-            head_hf_s3(name, filename=name + ".py", dataset=(resource_type == "dataset"))
+            head_hf_s3(name, filename=f"{name}.py", dataset=(resource_type == "dataset"))
         except Exception:
             pass
 
@@ -184,28 +184,25 @@ def get_imports(file_path: str) -> Tuple[str, str, str, str]:
                 line,
                 flags=re.MULTILINE,
             )
-            if match is None:
-                continue
-        if match.group(1):
+        if match is None:
+            continue
+        if match[1]:
             # The import starts with a '.', we will download the relevant file
-            if any(imp[1] == match.group(2) for imp in imports):
+            if any(imp[1] == match[2] for imp in imports):
                 # We already have this import
                 continue
-            if match.group(3):
+            if match[3]:
                 # The import has a comment with 'From:', we'll retrieve it from the given url
-                url_path = match.group(3)
+                url_path = match[3]
                 url_path, sub_directory = convert_github_url(url_path)
-                imports.append(("external", match.group(2), url_path, sub_directory))
-            elif match.group(2):
+                imports.append(("external", match[2], url_path, sub_directory))
+            elif match[2]:
                 # The import should be at the same place as the file
-                imports.append(("internal", match.group(2), match.group(2), None))
+                imports.append(("internal", match[2], match[2], None))
+        elif match[3]:
+            imports.append(("library", match[2], match[3], None))
         else:
-            if match.group(3):
-                # The import has a comment with `From: git+https:...`, asks user to pip install from git.
-                url_path = match.group(3)
-                imports.append(("library", match.group(2), url_path, None))
-            else:
-                imports.append(("library", match.group(2), match.group(2), None))
+            imports.append(("library", match[2], match[2], None))
 
     return imports
 
@@ -240,7 +237,7 @@ def _download_additional_modules(
                 f"comment pointing to the original relative import file path."
             )
         if import_type == "internal":
-            url_or_filename = url_or_path_join(base_path, import_path + ".py")
+            url_or_filename = url_or_path_join(base_path, f"{import_path}.py")
         elif import_type == "external":
             url_or_filename = import_path
         else:
@@ -298,10 +295,10 @@ def _copy_script_and_other_resources_in_importable_dir(
     # path is: ./datasets|metrics/dataset|metric_name/hash_from_code/script.py
     # we use a hash as subdirectory_name to be able to have multiple versions of a dataset/metric processing file together
     importable_subdirectory = os.path.join(importable_directory_path, subdirectory_name)
-    importable_local_file = os.path.join(importable_subdirectory, name + ".py")
+    importable_local_file = os.path.join(importable_subdirectory, f"{name}.py")
 
     # Prevent parallel disk operations
-    lock_path = importable_directory_path + ".lock"
+    lock_path = f"{importable_directory_path}.lock"
     with FileLock(lock_path):
         # Create main dataset/metrics folder if needed
         if download_mode == DownloadMode.FORCE_REDOWNLOAD and os.path.exists(importable_directory_path):
@@ -337,7 +334,9 @@ def _copy_script_and_other_resources_in_importable_dir(
         # Copy all the additional imports
         for import_name, import_path in local_imports:
             if os.path.isfile(import_path):
-                full_path_local_import = os.path.join(importable_subdirectory, import_name + ".py")
+                full_path_local_import = os.path.join(
+                    importable_subdirectory, f"{import_name}.py"
+                )
                 if not os.path.exists(full_path_local_import):
                     shutil.copyfile(import_path, full_path_local_import)
             elif os.path.isdir(import_path):
@@ -472,19 +471,20 @@ class HubEvaluationModuleFactory(_EvaluationModuleFactory):
         revision = self.revision or os.getenv("HF_SCRIPTS_VERSION", SCRIPTS_VERSION)
 
         if re.match(r"\d*\.\d*\.\d*", revision):  # revision is version number (three digits separated by full stops)
-            revision = "v" + revision  # tagging convention on evaluate repository starts with v
+            revision = f"v{revision}"
 
         # get script and other files
         try:
             local_path = self.download_loading_script(revision)
         except FileNotFoundError as err:
-            # if there is no file found with current revision tag try to load main
-            if self.revision is None and os.getenv("HF_SCRIPTS_VERSION", SCRIPTS_VERSION) != "main":
-                revision = "main"
-                local_path = self.download_loading_script(revision)
-            else:
+            if (
+                self.revision is not None
+                or os.getenv("HF_SCRIPTS_VERSION", SCRIPTS_VERSION) == "main"
+            ):
                 raise err
 
+            revision = "main"
+            local_path = self.download_loading_script(revision)
         imports = get_imports(local_path)
         local_imports = _download_additional_modules(
             name=self.name,
@@ -523,7 +523,7 @@ class CachedEvaluationModuleFactory(_EvaluationModuleFactory):
         self.name = name
         self.module_type = module_type
         self.dynamic_modules_path = dynamic_modules_path
-        assert self.name.count("/") == 0
+        assert "/" not in self.name
 
     def get_module(self) -> ImportableModule:
         dynamic_modules_path = self.dynamic_modules_path if self.dynamic_modules_path else init_dynamic_modules()
@@ -608,7 +608,7 @@ def evaluation_module_factory(
 
     filename = list(filter(lambda x: x, path.replace(os.sep, "/").split("/")))[-1]
     if not filename.endswith(".py"):
-        filename = filename + ".py"
+        filename = f"{filename}.py"
     combined_path = os.path.join(path, filename)
     # Try locally
     if path.endswith(filename):
@@ -625,23 +625,8 @@ def evaluation_module_factory(
     elif is_relative_path(path) and path.count("/") <= 1 and not force_local_path:
         try:
             # load a canonical evaluation module from hub
-            if path.count("/") == 0:
-                # if no type provided look through all possible modules
-                if module_type is None:
-                    for current_type in ["metric", "comparison", "measurement"]:
-                        try:
-                            return HubEvaluationModuleFactory(
-                                f"evaluate-{current_type}/{path}",
-                                revision=revision,
-                                download_config=download_config,
-                                download_mode=download_mode,
-                                dynamic_modules_path=dynamic_modules_path,
-                            ).get_module()
-                        except ConnectionError:
-                            pass
-                    raise FileNotFoundError
-                # if module_type provided load specific module_type
-                else:
+            if "/" not in path:
+                if module_type is not None:
                     return HubEvaluationModuleFactory(
                         f"evaluate-{module_type}/{path}",
                         revision=revision,
@@ -649,7 +634,18 @@ def evaluation_module_factory(
                         download_mode=download_mode,
                         dynamic_modules_path=dynamic_modules_path,
                     ).get_module()
-            # load community evaluation module from hub
+                for current_type in ["metric", "comparison", "measurement"]:
+                    try:
+                        return HubEvaluationModuleFactory(
+                            f"evaluate-{current_type}/{path}",
+                            revision=revision,
+                            download_config=download_config,
+                            download_mode=download_mode,
+                            dynamic_modules_path=dynamic_modules_path,
+                        ).get_module()
+                    except ConnectionError:
+                        pass
+                raise FileNotFoundError
             elif path.count("/") == 1:
                 return HubEvaluationModuleFactory(
                     path,
@@ -660,7 +656,7 @@ def evaluation_module_factory(
                 ).get_module()
         except Exception as e1:  # noqa: all the attempts failed, before raising the error we should check if the module is already cached.
             # if it's a canonical module we need to check if it's any of the types
-            if path.count("/") == 0:
+            if "/" not in path:
                 for current_type in ["metric", "comparison", "measurement"]:
                     try:
                         return CachedEvaluationModuleFactory(
@@ -668,7 +664,6 @@ def evaluation_module_factory(
                         ).get_module()
                     except Exception as e2:  # noqa: if it's not in the cache, then it doesn't exist.
                         pass
-            # if it's a community module we just need to check on path
             elif path.count("/") == 1:
                 try:
                     return CachedEvaluationModuleFactory(

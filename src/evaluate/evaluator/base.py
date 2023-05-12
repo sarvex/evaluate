@@ -138,7 +138,7 @@ class Evaluator(ABC):
         # bootstrap only works with functions that use args and no kwargs
         def build_args_metric(metric, key, **kwargs):
             def args_metric(*args):
-                return metric.compute(**{k: v for k, v in zip(kwargs.keys(), args)})[key]
+                return metric.compute(**dict(zip(kwargs.keys(), args)))[key]
 
             return args_metric
 
@@ -185,19 +185,13 @@ class Evaluator(ABC):
         try:
             import torch
 
-            if torch.cuda.is_available():
-                device = 0  # first GPU
-            else:
-                device = -1  # CPU
+            device = 0 if torch.cuda.is_available() else -1
         except ImportError:
             # if not available try TF
             try:
                 import tensorflow as tf
 
-                if len(tf.config.list_physical_devices("GPU")) > 0:
-                    device = 0  # first GPU
-                else:
-                    device = -1  # CPU
+                device = 0 if len(tf.config.list_physical_devices("GPU")) > 0 else -1
             except ImportError:
                 device = -1
 
@@ -273,7 +267,7 @@ class Evaluator(ABC):
         if type(metric_results) == float:
             metric_results = {metric.name: metric_results}
 
-        result.update(metric_results)
+        result |= metric_results
         result.update(perf_results)
 
         return result
@@ -452,10 +446,9 @@ class Evaluator(ABC):
         if device is None:
             device = self._infer_device()
 
-        if (
-            isinstance(model_or_pipeline, str)
-            or isinstance(model_or_pipeline, transformers.PreTrainedModel)
-            or isinstance(model_or_pipeline, transformers.TFPreTrainedModel)
+        if isinstance(
+            model_or_pipeline,
+            (str, transformers.PreTrainedModel, transformers.TFPreTrainedModel),
         ):
             pipe = pipeline(
                 self.task,

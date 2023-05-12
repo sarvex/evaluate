@@ -92,8 +92,7 @@ def honest_score(self, predictions):
     topK = len(predictions[0])
     inner_honest = self.honest_score_inner(predictions)
     honest_collection = [k["count"] for k in inner_honest]
-    honest_score = np.sum(honest_collection) / (topK * len(predictions))
-    return honest_score
+    return np.sum(honest_collection) / (topK * len(predictions))
 
 
 def honest_score_group(self, predictions, groups):
@@ -133,16 +132,15 @@ class Honest(evaluate.Measurement):
             raise ValueError(
                 'Please specify the language from the following list: ["it", "fr", "es", "pt", "ro", "en"]'
             )
-        else:
-            language = self.config_name
-            self.hurtlex = pd.read_csv(
-                f"https://raw.githubusercontent.com/MilaNLProc/hurtlex/master/lexica/{language.upper()}/1.2/hurtlex_{language.upper()}.tsv",
-                sep="\t",
-            )
-            self.hurtlex = self.hurtlex[self.hurtlex["level"] == "conservative"]
-            self.hurtlex["lemma"] = self.hurtlex["lemma"].apply(strip_accent)
-            self.categories = set(self.hurtlex["category"].unique())
-            self.words = set(self.hurtlex["lemma"].unique())
+        language = self.config_name
+        self.hurtlex = pd.read_csv(
+            f"https://raw.githubusercontent.com/MilaNLProc/hurtlex/master/lexica/{language.upper()}/1.2/hurtlex_{language.upper()}.tsv",
+            sep="\t",
+        )
+        self.hurtlex = self.hurtlex[self.hurtlex["level"] == "conservative"]
+        self.hurtlex["lemma"] = self.hurtlex["lemma"].apply(strip_accent)
+        self.categories = set(self.hurtlex["category"].unique())
+        self.words = set(self.hurtlex["lemma"].unique())
 
     def get_hurtlex_category(self, lemma):
         return self.hurtlex[self.hurtlex["lemma"] == lemma]["category"].values[0]

@@ -107,11 +107,12 @@ class QuestionAnsweringEvaluator(Evaluator):
             },
         )
 
-        metric_inputs = dict()
-        metric_inputs["references"] = [
-            {"id": element[id_column], "answers": element[label_column]} for element in data
-        ]
-
+        metric_inputs = {
+            "references": [
+                {"id": element[id_column], "answers": element[label_column]}
+                for element in data
+            ]
+        }
         return metric_inputs, {
             "question": DatasetColumn(data, question_column),
             "context": DatasetColumn(data, context_column),
@@ -126,10 +127,7 @@ class QuestionAnsweringEvaluator(Evaluator):
         nonempty_num_rows = data.filter(
             lambda x: len(x[label_column]["text"]) > 0, load_from_cache_file=False
         ).num_rows
-        if original_num_rows > nonempty_num_rows:
-            return True
-        else:
-            return False
+        return original_num_rows > nonempty_num_rows
 
     def predictions_processor(self, predictions: List, squad_v2_format: bool, ids: List):
         result = []
@@ -209,11 +207,7 @@ class QuestionAnsweringEvaluator(Evaluator):
                 "The dataset has SQuAD v1 format but you are using the SQuAD v2 metric. Consider passing the 'squad' metric."
             )
 
-        if squad_v2_format:
-            self.PIPELINE_KWARGS["handle_impossible_answer"] = True
-        else:
-            self.PIPELINE_KWARGS["handle_impossible_answer"] = False
-
+        self.PIPELINE_KWARGS["handle_impossible_answer"] = bool(squad_v2_format)
         # Compute predictions
         predictions, perf_results = self.call_pipeline(pipe, **pipe_inputs)
         predictions = self.predictions_processor(predictions, squad_v2_format=squad_v2_format, ids=data[id_column])
@@ -229,7 +223,7 @@ class QuestionAnsweringEvaluator(Evaluator):
             random_state=random_state,
         )
 
-        result.update(metric_results)
+        result |= metric_results
         result.update(perf_results)
 
         return result

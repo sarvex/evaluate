@@ -103,11 +103,9 @@ class Poseval(evaluate.Metric):
         references,
         zero_division: Union[str, int] = "warn",
     ):
-        report = classification_report(
+        return classification_report(
             y_true=[label for ref in references for label in ref],
             y_pred=[label for pred in predictions for label in pred],
             output_dict=True,
             zero_division=zero_division,
         )
-
-        return report

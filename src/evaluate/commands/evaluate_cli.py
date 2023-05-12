@@ -88,7 +88,12 @@ def main():
     repo_url = f"https://huggingface.co/spaces/{namespace}/{module_slug}"
 
     try:
-        create_repo(namespace + "/" + module_slug, repo_type="space", space_sdk="gradio", private=args["private"])
+        create_repo(
+            f"{namespace}/{module_slug}",
+            repo_type="space",
+            space_sdk="gradio",
+            private=args["private"],
+        )
     except Exception as exception:
         logger.error(
             f"Could not create Space for module at hf.co/spaces/{namespace}/{module_slug}. Make sure this space does not exist already."

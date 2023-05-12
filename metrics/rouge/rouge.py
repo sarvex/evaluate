@@ -136,10 +136,7 @@ class Rouge(evaluate.Metric):
             scores = []
 
         for ref, pred in zip(references, predictions):
-            if multi_ref:
-                score = scorer.score_multi(ref, pred)
-            else:
-                score = scorer.score(ref, pred)
+            score = scorer.score_multi(ref, pred) if multi_ref else scorer.score(ref, pred)
             if use_aggregator:
                 aggregator.add_scores(score)
             else:
@@ -151,8 +148,5 @@ class Rouge(evaluate.Metric):
                 result[key] = result[key].mid.fmeasure
 
         else:
-            result = {}
-            for key in scores[0]:
-                result[key] = list(score[key].fmeasure for score in scores)
-
+            result = {key: [score[key].fmeasure for score in scores] for key in scores[0]}
         return result

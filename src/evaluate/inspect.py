@@ -62,12 +62,12 @@ def list_evaluation_modules(module_type=None, include_community=True, with_detai
                     module_type, include_community=include_community, with_details=with_details
                 )
             )
-    else:
-        if module_type not in EVALUATION_MODULE_TYPES:
-            raise ValueError(f"Invalid module type '{module_type}'. Has to be one of {EVALUATION_MODULE_TYPES}.")
+    elif module_type in EVALUATION_MODULE_TYPES:
         evaluations_list = _list_evaluation_modules_type(
             module_type, include_community=include_community, with_details=with_details
         )
+    else:
+        raise ValueError(f"Invalid module type '{module_type}'. Has to be one of {EVALUATION_MODULE_TYPES}.")
     return evaluations_list
 
 

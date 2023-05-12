@@ -113,5 +113,4 @@ class CUAD(evaluate.Metric):
                 ]
             }
         ]
-        score = compute_score(dataset=dataset, predictions=pred_dict)
-        return score
+        return compute_score(dataset=dataset, predictions=pred_dict)

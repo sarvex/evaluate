@@ -85,7 +85,10 @@ class LabelDistribution(evaluate.Measurement):
     def _compute(self, data):
         """Returns the fraction of each label present in the data"""
         c = Counter(data)
-        label_distribution = {"labels": [k for k in c.keys()], "fractions": [f / len(data) for f in c.values()]}
+        label_distribution = {
+            "labels": list(c.keys()),
+            "fractions": [f / len(data) for f in c.values()],
+        }
         if isinstance(data[0], str):
             label2id = {label: id for id, label in enumerate(label_distribution["labels"])}
             data = [label2id[d] for d in data]

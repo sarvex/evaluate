@@ -109,7 +109,4 @@ class r_squared(evaluate.Metric):
         # Calculate R Squared
         r_squared = 1 - (ssr / sst)
 
-        # Round off to 3 decimal places
-        rounded_r_squared = round(r_squared, 3)
-
-        return rounded_r_squared
+        return round(r_squared, 3)

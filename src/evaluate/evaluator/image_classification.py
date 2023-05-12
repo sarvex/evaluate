@@ -94,7 +94,7 @@ class ImageClassificationEvaluator(Evaluator):
             defined in the `label_column` of the `data` dataset.
         """
 
-        result = super().compute(
+        return super().compute(
             model_or_pipeline=model_or_pipeline,
             data=data,
             subset=subset,
@@ -111,5 +111,3 @@ class ImageClassificationEvaluator(Evaluator):
             label_column=label_column,
             label_mapping=label_mapping,
         )
-
-        return result

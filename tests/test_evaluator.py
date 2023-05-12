@@ -84,7 +84,10 @@ class DummyImageClassificationPipeline:
         self.task = "image-classification"
 
     def __call__(self, images, **kwargs):
-        return [[{"score": 0.9, "label": "yurt"}, {"score": 0.1, "label": "umbrella"}] for i, _ in enumerate(images)]
+        return [
+            [{"score": 0.9, "label": "yurt"}, {"score": 0.1, "label": "umbrella"}]
+            for _ in images
+        ]
 
 
 class DummyQuestionAnsweringPipeline:
@@ -135,7 +138,10 @@ class DummyAudioClassificationPipeline:
         self.task = "audio-classification"
 
     def __call__(self, audio, **kwargs):
-        return [[{"score": 0.9, "label": "yes"}, {"score": 0.1, "label": "no"}] for i, _ in enumerate(audio)]
+        return [
+            [{"score": 0.9, "label": "yes"}, {"score": 0.1, "label": "no"}]
+            for _ in audio
+        ]
 
 
 class TestEvaluator(TestCase):

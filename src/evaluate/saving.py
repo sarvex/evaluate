@@ -38,13 +38,13 @@ def save(path_or_file, **data):
     data["_python_version"] = sys.version
     data["_interpreter_path"] = sys.executable
 
-    with FileLock(str(file_path) + ".lock"):
+    with FileLock(f"{str(file_path)}.lock"):
         with open(file_path, "w") as f:
             json.dump(data, f)
 
     # cleanup lock file
     try:
-        os.remove(str(file_path) + ".lock")
+        os.remove(f"{str(file_path)}.lock")
     except FileNotFoundError:
         pass
 
@@ -53,7 +53,7 @@ def save(path_or_file, **data):
 
 def _setup_path(path_or_file, current_time):
     path_or_file = Path(path_or_file)
-    is_file = len(path_or_file.suffix) > 0
+    is_file = path_or_file.suffix != ""
     if is_file:
         folder = path_or_file.parent
         file_name = path_or_file.name
@@ -66,8 +66,7 @@ def _setup_path(path_or_file, current_time):
 
 def _git_commit_hash():
     res = subprocess.run("git rev-parse --is-inside-work-tree".split(), cwd="./", stdout=subprocess.PIPE)
-    if res.stdout.decode().strip() == "true":
-        res = subprocess.run("git rev-parse HEAD".split(), cwd=os.getcwd(), stdout=subprocess.PIPE)
-        return res.stdout.decode().strip()
-    else:
+    if res.stdout.decode().strip() != "true":
         return None
+    res = subprocess.run("git rev-parse HEAD".split(), cwd=os.getcwd(), stdout=subprocess.PIPE)
+    return res.stdout.decode().strip()

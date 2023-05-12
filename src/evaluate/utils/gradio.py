@@ -47,8 +47,7 @@ def parse_readme(filepath):
         return "No README.md found."
     with open(filepath, "r") as f:
         text = f.read()
-        match = REGEX_YAML_BLOCK.search(text)
-        if match:
+        if match := REGEX_YAML_BLOCK.search(text):
             text = text[match.end() :]
     return text
 
@@ -82,7 +81,7 @@ def parse_test_cases(test_cases, feature_names, input_types):
             if input_type == "json":
                 parsed_cases.append([str(element) for element in test_case[feat]])
             elif input_type == "str":
-                parsed_cases.append(['"' + element + '"' for element in test_case[feat]])
+                parsed_cases.append([f'"{element}"' for element in test_case[feat]])
             else:
                 parsed_cases.append(test_case[feat])
         examples.append([list(i) for i in zip(*parsed_cases)])

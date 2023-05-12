@@ -67,7 +67,7 @@ class FileFreeLock(BaseFileLock):
 # lists - summarize long lists similarly to NumPy
 # arrays/tensors - let the frameworks control formatting
 def summarize_if_long_list(obj):
-    if not type(obj) == list or len(obj) <= 6:
+    if type(obj) != list or len(obj) <= 6:
         return f"{obj}"
 
     def format_chunk(chunk):
@@ -275,7 +275,7 @@ class EvaluationModule(EvaluationModuleInfoMixin):
         file_path = os.path.join(self.data_dir, f"{self.experiment_id}-{self.num_process}-{self.process_id}.arrow")
         filelock = None
         for i in range(self.max_concurrent_cache_files):
-            filelock = FileLock(file_path + ".lock")
+            filelock = FileLock(f"{file_path}.lock")
             try:
                 filelock.acquire(timeout=timeout)
             except Timeout:
@@ -326,7 +326,7 @@ class EvaluationModule(EvaluationModuleInfoMixin):
             if process_id == 0:  # process 0 already has its lock file
                 filelocks.append(self.filelock)
             else:
-                filelock = FileLock(file_path + ".lock")
+                filelock = FileLock(f"{file_path}.lock")
                 try:
                     filelock.acquire(timeout=self.timeout)
                 except Timeout:
@@ -437,13 +437,13 @@ class EvaluationModule(EvaluationModuleInfoMixin):
         all_kwargs = {"predictions": predictions, "references": references, **kwargs}
         if predictions is None and references is None:
             missing_kwargs = {k: None for k in self._feature_names() if k not in all_kwargs}
-            all_kwargs.update(missing_kwargs)
-        else:
-            missing_inputs = [k for k in self._feature_names() if k not in all_kwargs]
-            if missing_inputs:
-                raise ValueError(
-                    f"Evaluation module inputs are missing: {missing_inputs}. All required inputs are {list(self._feature_names())}"
-                )
+            all_kwargs |= missing_kwargs
+        elif missing_inputs := [
+            k for k in self._feature_names() if k not in all_kwargs
+        ]:
+            raise ValueError(
+                f"Evaluation module inputs are missing: {missing_inputs}. All required inputs are {list(self._feature_names())}"
+            )
         inputs = {input_name: all_kwargs[input_name] for input_name in self._feature_names()}
         compute_kwargs = {k: kwargs[k] for k in kwargs if k not in self._feature_names()}
 
@@ -455,31 +455,30 @@ class EvaluationModule(EvaluationModuleInfoMixin):
         self.filelock = None
         self.selected_feature_format = None
 
-        if self.process_id == 0:
-            self.data.set_format(type=self.info.format)
+        if self.process_id != 0:
+            return None
+        self.data.set_format(type=self.info.format)
 
-            inputs = {input_name: self.data[input_name] for input_name in self._feature_names()}
-            with temp_seed(self.seed):
-                output = self._compute(**inputs, **compute_kwargs)
+        inputs = {input_name: self.data[input_name] for input_name in self._feature_names()}
+        with temp_seed(self.seed):
+            output = self._compute(**inputs, **compute_kwargs)
 
-            if self.buf_writer is not None:
-                self.buf_writer = None
+        if self.buf_writer is not None:
+            self.buf_writer = None
+            del self.data
+            self.data = None
+        else:
+            # Release locks and delete all the cache files. Process 0 is released last.
+            for filelock, file_path in reversed(list(zip(self.filelocks, self.file_paths))):
+                logger.info(f"Removing {file_path}")
                 del self.data
                 self.data = None
-            else:
-                # Release locks and delete all the cache files. Process 0 is released last.
-                for filelock, file_path in reversed(list(zip(self.filelocks, self.file_paths))):
-                    logger.info(f"Removing {file_path}")
-                    del self.data
-                    self.data = None
-                    del self.writer
-                    self.writer = None
-                    os.remove(file_path)
-                    filelock.release()
+                del self.writer
+                self.writer = None
+                os.remove(file_path)
+                filelock.release()
 
-            return output
-        else:
-            return None
+        return output
 
     def add_batch(self, *, predictions=None, references=None, **kwargs):
         """Add a batch of predictions and references for the evaluation module's stack.
@@ -499,8 +498,11 @@ class EvaluationModule(EvaluationModuleInfoMixin):
         ...     accuracy.add_batch(references=refs, predictions=preds)
         ```
         """
-        bad_inputs = [input_name for input_name in kwargs if input_name not in self._feature_names()]
-        if bad_inputs:
+        if bad_inputs := [
+            input_name
+            for input_name in kwargs
+            if input_name not in self._feature_names()
+        ]:
             raise ValueError(
                 f"Bad inputs for evaluation module: {bad_inputs}. All required inputs are {list(self._feature_names())}"
             )
@@ -558,8 +560,11 @@ class EvaluationModule(EvaluationModuleInfoMixin):
         >>> accuracy.add(references=[0,1], predictions=[1,0])
         ```
         """
-        bad_inputs = [input_name for input_name in kwargs if input_name not in self._feature_names()]
-        if bad_inputs:
+        if bad_inputs := [
+            input_name
+            for input_name in kwargs
+            if input_name not in self._feature_names()
+        ]:
             raise ValueError(
                 f"Bad inputs for evaluation module: {bad_inputs}. All required inputs are {list(self._feature_names())}"
             )
@@ -587,21 +592,19 @@ class EvaluationModule(EvaluationModuleInfoMixin):
     def _infer_feature_from_batch(self, batch):
         if isinstance(self.features, Features):
             return self.features
-        else:
-            example = dict([(k, v[0]) for k, v in batch.items()])
-            return self._infer_feature_from_example(example)
+        example = dict([(k, v[0]) for k, v in batch.items()])
+        return self._infer_feature_from_example(example)
 
     def _infer_feature_from_example(self, example):
         if isinstance(self.features, Features):
             return self.features
-        else:
-            for features in self.features:
-                try:
-                    self._enforce_nested_string_type(features, example)
-                    features.encode_example(example)
-                    return features
-                except (ValueError, TypeError):
-                    continue
+        for features in self.features:
+            try:
+                self._enforce_nested_string_type(features, example)
+                features.encode_example(example)
+                return features
+            except (ValueError, TypeError):
+                continue
         feature_strings = "\n".join([f"Feature option {i}: {feature}" for i, feature in enumerate(self.features)])
         error_msg = (
             f"Predictions and/or references don't match the expected format.\n"
@@ -612,25 +615,24 @@ class EvaluationModule(EvaluationModuleInfoMixin):
         raise ValueError(error_msg) from None
 
     def _feature_names(self):
-        if isinstance(self.features, list):
-            feature_names = list(self.features[0].keys())
-        else:
-            feature_names = list(self.features.keys())
-        return feature_names
+        return (
+            list(self.features[0].keys())
+            if isinstance(self.features, list)
+            else list(self.features.keys())
+        )
 
     def _init_writer(self, timeout=1):
-        if self.num_process > 1:
-            if self.process_id == 0:
-                file_path = os.path.join(self.data_dir, f"{self.experiment_id}-{self.num_process}-rdv.lock")
-                self.rendez_vous_lock = FileLock(file_path)
-                try:
-                    self.rendez_vous_lock.acquire(timeout=timeout)
-                except TimeoutError:
-                    raise ValueError(
-                        f"Error in _init_writer: another evalution module instance is already using the local cache file at {file_path}. "
-                        f"Please specify an experiment_id (currently: {self.experiment_id}) to avoid collision "
-                        f"between distributed evaluation module instances."
-                    ) from None
+        if self.num_process > 1 and self.process_id == 0:
+            file_path = os.path.join(self.data_dir, f"{self.experiment_id}-{self.num_process}-rdv.lock")
+            self.rendez_vous_lock = FileLock(file_path)
+            try:
+                self.rendez_vous_lock.acquire(timeout=timeout)
+            except TimeoutError:
+                raise ValueError(
+                    f"Error in _init_writer: another evalution module instance is already using the local cache file at {file_path}. "
+                    f"Please specify an experiment_id (currently: {self.experiment_id}) to avoid collision "
+                    f"between distributed evaluation module instances."
+                ) from None
 
         if self.keep_in_memory:
             self.buf_writer = pa.BufferOutputStream()
@@ -748,7 +750,6 @@ class EvaluationModule(EvaluationModuleInfoMixin):
                             if _check_non_null_non_empty_recursive(sub_obj, dict_tuples[0]):
                                 self._enforce_nested_string_type(dict_tuples[0], sub_obj)
                                 break
-                    return None
                 else:
                     # obj is a single dict
                     for k, (sub_schema, sub_objs) in zip_dict(schema.feature, obj):
@@ -756,19 +757,18 @@ class EvaluationModule(EvaluationModuleInfoMixin):
                             if _check_non_null_non_empty_recursive(sub_obj, sub_schema):
                                 self._enforce_nested_string_type(sub_schema, sub_obj)
                                 break
-                    return None
+                return None
             # schema.feature is not a dict
             if isinstance(obj, str):  # don't interpret a string as a list
                 raise ValueError(f"Got a string but expected a list instead: '{obj}'")
             if obj is None:
                 return None
-            else:
-                if len(obj) > 0:
-                    for first_elmt in obj:
-                        if _check_non_null_non_empty_recursive(first_elmt, schema.feature):
-                            break
-                    if not isinstance(first_elmt, list):
-                        return self._enforce_nested_string_type(schema.feature, first_elmt)
+            if len(obj) > 0:
+                for first_elmt in obj:
+                    if _check_non_null_non_empty_recursive(first_elmt, schema.feature):
+                        break
+                if not isinstance(first_elmt, list):
+                    return self._enforce_nested_string_type(schema.feature, first_elmt)
 
         elif isinstance(schema, Value):
             if pa.types.is_string(schema.pa_type) and not isinstance(obj, str):

@@ -127,7 +127,7 @@ class Mauve(evaluate.Metric):
         verbose=True,
         seed=25,
     ):
-        out = compute_mauve(
+        return compute_mauve(
             p_text=predictions,
             q_text=references,
             p_features=p_features,
@@ -147,4 +147,3 @@ class Mauve(evaluate.Metric):
             verbose=verbose,
             seed=seed,
         )
-        return out

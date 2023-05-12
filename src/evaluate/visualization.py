@@ -29,7 +29,12 @@ class ComplexRadar:
         # Consider here the trick with having the first axes element twice (len+1)
         angles = np.arange(0, 360, 360.0 / len(variables))
         axes = [
-            fig.add_axes([0.1, 0.1, 0.9, 0.9], polar=True, label="axes{}".format(i), **self.format_cfg["axes_args"])
+            fig.add_axes(
+                [0.1, 0.1, 0.9, 0.9],
+                polar=True,
+                label=f"axes{i}",
+                **self.format_cfg["axes_args"],
+            )
             for i in range(len(variables) + 1)
         ]
 
@@ -43,11 +48,11 @@ class ComplexRadar:
         for i, ax in enumerate(axes):
 
             # Here we do the trick by repeating the first iteration
-            j = 0 if (i == 0 or i == 1) else i - 1
+            j = 0 if i in [0, 1] else i - 1
             ax.set_ylim(*ranges[j])
             # Set endpoint to True if you like to have values right before the last circle
             grid = np.linspace(*ranges[j], num=n_ring_levels, endpoint=self.format_cfg["incl_endpoint"])
-            gridlabel = ["{}".format(round(x, 2)) for x in grid]
+            gridlabel = [f"{round(x, 2)}" for x in grid]
             gridlabel[0] = ""  # remove values from the center
             lines, labels = ax.set_rgrids(
                 grid, labels=gridlabel, angle=angles[j], **self.format_cfg["rgrid_tick_lbls_args"]
@@ -102,12 +107,10 @@ class ComplexRadar:
         self.ax.set_xticklabels(labels, **self.format_cfg["theta_tick_lbls"])
 
         for t, a in zip(self.ax.get_xticklabels(), angles):
-            if a == 0:
+            if a == 0 or (a <= 0 or a >= 180) and a == 180:
                 t.set_ha("center")
             elif a > 0 and a < 180:
                 t.set_ha("left")
-            elif a == 180:
-                t.set_ha("center")
             else:
                 t.set_ha("right")
 
@@ -120,8 +123,10 @@ class ComplexRadar:
         x1, x2 = ranges[0]
         d = data[0]
         sdata = [d]
-        for d, (y1, y2) in zip(data[1:], ranges[1:]):
-            sdata.append((d - y1) / (y2 - y1) * (x2 - x1) + x1)
+        sdata.extend(
+            (d - y1) / (y2 - y1) * (x2 - x1) + x1
+            for d, (y1, y2) in zip(data[1:], ranges[1:])
+        )
         return sdata
 
     def plot(self, data, *args, **kwargs):
@@ -181,7 +186,7 @@ def radar_plot(data, model_names, invert_range=[], config=None, fig=None):
     data = pd.DataFrame(data)
     data.index = model_names
     variables = data.keys()
-    if all(x in variables for x in invert_range) is False:
+    if any(x not in variables for x in invert_range):
         raise ValueError("All of the metrics in `invert_range` should be in the data provided.")
     min_max_per_variable = data.describe().T[["min", "max"]]
     min_max_per_variable["min"] = min_max_per_variable["min"] - 0.1 * (
@@ -213,7 +218,7 @@ def radar_plot(data, model_names, invert_range=[], config=None, fig=None):
         "bbox_to_anchor": (2, 1),
     }
     if config is not None:
-        format_cfg.update(config)
+        format_cfg |= config
     if fig is None:
         fig = plt.figure()
     radar = ComplexRadar(

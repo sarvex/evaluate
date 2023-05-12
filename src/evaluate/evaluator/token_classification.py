@@ -175,7 +175,7 @@ class TokenClassificationEvaluator(Evaluator):
         labels_are_int = isinstance(data.features[label_column].feature, ClassLabel)
         if labels_are_int:
             label_list = data.features[label_column].feature.names  # list of string labels
-            id_to_label = {i: label for i, label in enumerate(label_list)}
+            id_to_label = dict(enumerate(label_list))
             references = [[id_to_label[label_id] for label_id in label_ids] for label_ids in data[label_column]]
         elif data.features[label_column].feature.dtype.startswith("int"):
             raise NotImplementedError(
@@ -268,7 +268,7 @@ class TokenClassificationEvaluator(Evaluator):
             random_state=random_state,
         )
 
-        result.update(metric_results)
+        result |= metric_results
         result.update(perf_results)
 
         return result

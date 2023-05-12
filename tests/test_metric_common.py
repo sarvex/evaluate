@@ -103,13 +103,14 @@ class LocalModuleTest(parameterized.TestCase):
         doctest.ELLIPSIS_MARKER = "[...]"
         evaluation_module = importlib.import_module(
             evaluate.loading.evaluation_module_factory(
-                os.path.join(evaluation_module_type + "s", evaluation_module_name), module_type=evaluation_module_type
+                os.path.join(f"{evaluation_module_type}s", evaluation_module_name),
+                module_type=evaluation_module_type,
             ).module_path
         )
         evaluation_instance = evaluate.loading.import_main_class(evaluation_module.__name__)
         # check parameters
         parameters = inspect.signature(evaluation_instance._compute).parameters
-        self.assertTrue(all([p.kind != p.VAR_KEYWORD for p in parameters.values()]))  # no **kwargs
+        self.assertTrue(all(p.kind != p.VAR_KEYWORD for p in parameters.values()))
         # run doctest
         with self.patch_intensive_calls(evaluation_module_name, evaluation_module.__name__):
             with self.use_local_metrics(evaluation_module_type):
@@ -145,7 +146,11 @@ class LocalModuleTest(parameterized.TestCase):
     @contextmanager
     def use_local_metrics(self, evaluation_module_type):
         def load_local_metric(evaluation_module_name, *args, **kwargs):
-            return load(os.path.join(evaluation_module_type + "s", evaluation_module_name), *args, **kwargs)
+            return load(
+                os.path.join(f"{evaluation_module_type}s", evaluation_module_name),
+                *args,
+                **kwargs,
+            )
 
         with patch("evaluate.load") as mock_load:
             mock_load.side_effect = load_local_metric

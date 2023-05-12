@@ -78,5 +78,4 @@ def filepath_for_dataset_split(dataset_name, split, data_dir, filetype_suffix=No
         split=split,
         filetype_suffix=filetype_suffix,
     )
-    filepath = os.path.join(data_dir, filename)
-    return filepath
+    return os.path.join(data_dir, filename)

@@ -91,7 +91,7 @@ class Text2TextGenerationEvaluator(Evaluator):
         if generation_kwargs is not None:
             self.PIPELINE_KWARGS.update(generation_kwargs)
 
-        result = super().compute(
+        return super().compute(
             model_or_pipeline=model_or_pipeline,
             data=data,
             subset=subset,
@@ -106,8 +106,6 @@ class Text2TextGenerationEvaluator(Evaluator):
             input_column=input_column,
             label_column=label_column,
         )
-
-        return result
 
 
 class SummarizationEvaluator(Text2TextGenerationEvaluator):
@@ -162,7 +160,7 @@ class SummarizationEvaluator(Text2TextGenerationEvaluator):
         ```
         """
 
-        result = super().compute(
+        return super().compute(
             model_or_pipeline=model_or_pipeline,
             data=data,
             subset=subset,
@@ -177,8 +175,6 @@ class SummarizationEvaluator(Text2TextGenerationEvaluator):
             input_column=input_column,
             label_column=label_column,
         )
-
-        return result
 
 
 class TranslationEvaluator(Text2TextGenerationEvaluator):
@@ -232,7 +228,7 @@ class TranslationEvaluator(Text2TextGenerationEvaluator):
         ```
         """
 
-        result = super().compute(
+        return super().compute(
             model_or_pipeline=model_or_pipeline,
             data=data,
             subset=subset,
@@ -247,5 +243,3 @@ class TranslationEvaluator(Text2TextGenerationEvaluator):
             input_column=input_column,
             label_column=label_column,
         )
-
-        return result
